@@ -1,3 +1,16 @@
+"""Análise exploratória de preços de combustíveis (ANP - Preços Semestrais).
+
+Fluxo:
+    1. Carregar o CSV e localizar as colunas relevantes por nome (tolerando
+       variações de acentuação/maiúsculas).
+    2. Limpar e tipar os dados (moeda -> float, data -> datetime, texto -> string).
+    3. Salvar um CSV tratado, com one-hot encoding da coluna de produto.
+    4. Exibir tipos de variáveis, estatísticas descritivas, outliers e gráficos.
+
+Uso:
+    python analise_p.py [caminho_do_csv]
+"""
+
 import sys
 import unicodedata
 from pathlib import Path
@@ -167,8 +180,21 @@ def calcular_resumo_preco(dados: pd.DataFrame, preco: str, produto: str | None) 
 	return dados[preco].agg(["mean", "median", "std", "var"]).round(2)
 
 
-def detectar_outliers(dados: pd.DataFrame, preco: str) -> pd.DataFrame:
-	q1, q3 = dados[preco].quantile([0.25, 0.75])
+def detectar_outliers(dados: pd.DataFrame, preco: str, produto: str | None) -> pd.DataFrame:
+	"""Detecta outliers pelo critério do IQR (1,5x).
+
+	Quando `produto` está disponível, o IQR é calculado por grupo de produto
+	em vez de sobre a base inteira — isso evita, por exemplo, tratar preços
+	normais de etanol (~R$ 3,71) como outliers só por estarem distantes da
+	faixa de preço do diesel (~R$ 6,01)."""
+	if produto:
+		agrupado = dados.groupby(produto)[preco]
+		q1 = agrupado.transform(lambda serie: serie.quantile(0.25))
+		q3 = agrupado.transform(lambda serie: serie.quantile(0.75))
+	else:
+		q1 = dados[preco].quantile(0.25)
+		q3 = dados[preco].quantile(0.75)
+
 	limite = 1.5 * (q3 - q1)
 	return dados[(dados[preco] < q1 - limite) | (dados[preco] > q3 + limite)]
 
@@ -195,6 +221,8 @@ def plotar_boxplot_e_histograma(dados: pd.DataFrame, preco: str, produto: str | 
 	eixo_hist.set_title("Histograma dos preços de combustíveis")
 
 	plt.tight_layout()
+	Path("imagens").mkdir(parents=True, exist_ok=True)
+	plt.savefig("imagens/boxplot_precos.png", dpi=300, bbox_inches="tight")
 	plt.show()
 
 
@@ -202,6 +230,8 @@ def plotar_medias_por_bandeira(medias: pd.Series) -> None:
 	medias.plot.bar(title="Preço médio por bandeira", ylabel="Preço médio", figsize=(9, 5))
 	plt.xticks(rotation=45, ha="right")
 	plt.tight_layout()
+	Path("imagens").mkdir(parents=True, exist_ok=True)
+	plt.savefig("imagens/medias_por_bandeira.png", dpi=300, bbox_inches="tight")
 	plt.show()
 
 
@@ -232,7 +262,7 @@ def main() -> None:
 	print("\nEstatísticas do preço por tipo de produto:")
 	print(calcular_resumo_preco(dados, preco, produto))
 
-	outliers = detectar_outliers(dados, preco)
+	outliers = detectar_outliers(dados, preco, produto)
 	print(f"\nOutliers detectados: {len(outliers)}")
 	print(outliers[[preco]].head(20))
 
