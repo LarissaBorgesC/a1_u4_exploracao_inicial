@@ -1,16 +1,3 @@
-"""Análise exploratória de preços de combustíveis (ANP - Preços Semestrais).
-
-Fluxo:
-    1. Carregar o CSV e localizar as colunas relevantes por nome (tolerando
-       variações de acentuação/maiúsculas).
-    2. Limpar e tipar os dados (moeda -> float, data -> datetime, texto -> string).
-    3. Salvar um CSV tratado, com one-hot encoding da coluna de produto.
-    4. Exibir tipos de variáveis, estatísticas descritivas, outliers e gráficos.
-
-Uso:
-    python analise_p.py [caminho_do_csv]
-"""
-
 import sys
 import unicodedata
 from pathlib import Path
@@ -224,15 +211,18 @@ def plotar_boxplot_e_histograma(dados: pd.DataFrame, preco: str, produto: str | 
 	Path("imagens").mkdir(parents=True, exist_ok=True)
 	plt.savefig("imagens/boxplot_precos.png", dpi=300, bbox_inches="tight")
 	plt.show()
+	plt.close(fig)
 
 
 def plotar_medias_por_bandeira(medias: pd.Series) -> None:
-	medias.plot.bar(title="Preço médio por bandeira", ylabel="Preço médio", figsize=(9, 5))
+	fig, eixo = plt.subplots(figsize=(9, 5))
+	medias.plot.bar(ax=eixo, title="Preço médio por bandeira", ylabel="Preço médio")
 	plt.xticks(rotation=45, ha="right")
 	plt.tight_layout()
 	Path("imagens").mkdir(parents=True, exist_ok=True)
 	plt.savefig("imagens/medias_por_bandeira.png", dpi=300, bbox_inches="tight")
 	plt.show()
+	plt.close(fig)
 
 
 # ---------------------------------------------------------------------------
