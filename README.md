@@ -7,7 +7,20 @@ O script identifica as colunas relevantes automaticamente (mesmo com pequenas
 variações de nome/acentuação), converte valores monetários e datas, remove
 colunas totalmente vazias, gera uma versão tratada do CSV (com one-hot
 encoding do produto) e produz um relatório com estatísticas descritivas,
-detecção de outliers e gráficos.
+detecção de outliers e gráficos salvos em disco.
+
+## Estrutura do projeto
+
+```
+.
+├── analise_p.py                              # script principal
+├── requirements.txt                          # dependências do projeto
+├── README.md
+├── Preços semestrais - AUTOMOTIVOS_2024.01_reduzido.csv   # arquivo de entrada (exemplo)
+└── imagens/                                  # gerada automaticamente pelo script
+    ├── boxplot_precos.png
+    └── medias_por_bandeira.png
+```
 
 ## O que o script faz
 
@@ -24,20 +37,30 @@ detecção de outliers e gráficos.
 5. **Exibe no terminal**:
    - Classificação de cada coluna (qualitativa, quantitativa ou temporal).
    - Estatísticas descritivas do preço (média, mediana, desvio-padrão, variância) por tipo de produto.
-   - Registros identificados como outliers (regra do IQR: 1,5×IQR).
+   - Registros identificados como outliers (regra do IQR calculado **por produto**, veja "Observações").
    - Preço médio por bandeira.
-6. **Gera gráficos** (via `matplotlib`/`seaborn`):
-   - Boxplot dos preços por tipo de produto.
-   - Histograma da distribuição geral dos preços.
-   - Gráfico de barras do preço médio por bandeira.
+6. **Gera e salva gráficos** (via `matplotlib`/`seaborn`), em janela interativa e em arquivo `.png` dentro da pasta `imagens/`:
+   - Boxplot dos preços por tipo de produto + histograma da distribuição geral dos preços (`imagens/boxplot_precos.png`).
+   - Gráfico de barras do preço médio por bandeira (`imagens/medias_por_bandeira.png`).
 
 ## Requisitos
 
 - Python 3.10+
-- Dependências:
-  ```bash
-  pip install pandas matplotlib seaborn
-  ```
+- Dependências listadas em [`requirements.txt`](requirements.txt): `pandas`, `matplotlib`, `seaborn`.
+
+Instalação recomendada (idealmente dentro de um ambiente virtual):
+
+```bash
+python -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+Se preferir instalar sem o arquivo:
+
+```bash
+pip install pandas matplotlib seaborn
+```
 
 ## Como usar
 
@@ -74,14 +97,19 @@ Se a coluna de preço não for encontrada, o script interrompe a execução com
 um erro (`KeyError: Coluna de preço não encontrada.`).
 
 Colunas ausentes (como `bandeira` ou `produto`) não quebram o script — as
-etapas que dependem delas são simplesmente puladas.
+etapas que dependem delas são simplesmente puladas. Sem a coluna `produto`,
+por exemplo, o IQR dos outliers volta a ser calculado sobre a base inteira
+(veja "Observações").
 
 ## Saídas geradas
 
 - **CSV tratado**: `<nome_original>_tratado_com_dummies.csv`, salvo na mesma
   pasta do arquivo de entrada, separado por `;`.
-- **Gráficos**: exibidos em janelas interativas (`plt.show()`); nada é salvo
-  em disco automaticamente.
+- **Gráficos**: exibidos em janelas interativas (`plt.show()`) **e** salvos
+  em disco na pasta `imagens/` (criada automaticamente se não existir),
+  em 300 dpi:
+  - `imagens/boxplot_precos.png`
+  - `imagens/medias_por_bandeira.png`
 
 ## Estrutura do código
 
@@ -100,7 +128,10 @@ do fluxo em `main()`:
 ## Observações
 
 - A detecção de outliers usa o critério clássico do intervalo interquartil
-  (IQR): valores abaixo de `Q1 - 1,5×IQR` ou acima de `Q3 + 1,5×IQR` sobre
-  **todo** o conjunto de preços (não é calculada separadamente por produto).
+  (IQR): valores abaixo de `Q1 - 1,5×IQR` ou acima de `Q3 + 1,5×IQR`. Quando a
+  coluna `produto` é encontrada, o Q1/Q3 é calculado **por produto**
+  (`groupby(produto)`), evitando que a diferença natural de faixa de preço
+  entre combustíveis (ex.: etanol ~R$ 3,71 vs. diesel ~R$ 6,01) gere falsos
+  outliers. Sem a coluna `produto`, o cálculo cai para o IQR global da base.
 - A coluna de produto é convertida para caixa alta antes do one-hot encoding,
   para evitar categorias duplicadas por diferença de capitalização.
